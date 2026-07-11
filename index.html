@@ -311,7 +311,7 @@
       <button class="nav-item" data-nav="subjects"><span class="ic">📚</span><span>Matérias</span></button>
       <button class="nav-item" data-nav="review"><span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span><span>Revisões</span></button>
     </nav>
-    <div class="sidebar-foot">Seus dados ficam salvos automaticamente aqui neste artefato — sem planilha, sem backend externo.</div>
+    <div class="sidebar-foot">Seus dados sincronizam via Firebase — funciona igual aqui e na versão instalada no celular/PC.</div>
   </aside>
 
   <div id="main">
@@ -400,7 +400,7 @@
       </div>
     </section>
 
-    <footer class="foot">dados salvos automaticamente · nada de planilha externa</footer>
+    <footer class="foot">dados sincronizados via Firebase · mesmo progresso em qualquer dispositivo</footer>
   </div>
 </div>
 
@@ -541,41 +541,61 @@ function pesoOf(ch){ return config.pesoOverrides[ch.id] || ch.pesoDefault; }
 function pesoValue(ch){ const p = pesoOf(ch); return config.pesoValues[p] !== undefined ? config.pesoValues[p] : 1.5; }
 function pesoLabel(p){ return p==='G' ? 'grande' : (p==='M' ? 'médio' : 'pequeno'); }
 
-/* ============ CONFIG STORAGE (só preferências locais, não progresso acadêmico) ============ */
-async function loadConfig(){
+/* ============ BACKEND (Firebase Realtime Database — compartilhado entre Claude e o PWA) ============ */
+const FIREBASE_URL = 'https://itaappgui-default-rtdb.firebaseio.com';
+const LS_CONFIG_FALLBACK = 'painelita_config_cache';
+const LS_PROGRESS_FALLBACK = 'painelita_progress_cache';
+
+async function fbGet(path){
+  let res;
   try{
-    const raw = localStorage.getItem('painelita_config');
-    if(raw){
-      const saved = JSON.parse(raw);
-      config = Object.assign({}, config, saved);
-      config.pesoValues = Object.assign({P:1,M:1.5,G:2.5}, saved.pesoValues||{});
-      config.pesoOverrides = saved.pesoOverrides || {};
-      config.intervals = (saved.intervals && saved.intervals.length) ? saved.intervals : config.intervals;
-      return true;
-    }
-  }catch(e){}
-  return false;
+    res = await fetch(FIREBASE_URL + path + '.json');
+  }catch(networkErr){
+    throw new Error('Falha de rede ao contactar o Firebase. Detalhe: '+networkErr.message);
+  }
+  if(!res.ok) throw new Error('Firebase respondeu status HTTP '+res.status+' — confira a URL e as regras (Rules) do Realtime Database.');
+  return await res.json();
 }
-async function saveConfig(){
-  try{ localStorage.setItem('painelita_config', JSON.stringify(config)); }catch(e){}
+async function fbPut(path, data){
+  let res;
+  try{
+    res = await fetch(FIREBASE_URL + path + '.json', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+  }catch(networkErr){
+    throw new Error('Falha de rede ao salvar no Firebase. Detalhe: '+networkErr.message);
+  }
+  if(!res.ok) throw new Error('Firebase respondeu status HTTP '+res.status+' ao salvar — confira as regras (Rules) do Realtime Database.');
+  return await res.json();
 }
 
-/* ============ BACKEND (armazenamento nativo do artefato — sem planilha externa) ============ */
-async function loadProgress(){
-  try{
-    const raw = localStorage.getItem('painelita_progress');
-    progressData = raw ? JSON.parse(raw) : {};
-  }catch(e){
-    progressData = {};
+async function loadConfig(){
+  const saved = await fbGet('/painelita/config');
+  if(saved){
+    config = Object.assign({}, config, saved);
+    config.pesoValues = Object.assign({P:1,M:1.5,G:2.5}, saved.pesoValues||{});
+    config.pesoOverrides = saved.pesoOverrides || {};
+    config.intervals = (saved.intervals && saved.intervals.length) ? saved.intervals : config.intervals;
   }
+  try{ localStorage.setItem(LS_CONFIG_FALLBACK, JSON.stringify(config)); }catch(e){}
+  return !!saved;
+}
+async function saveConfig(){
+  await fbPut('/painelita/config', config);
+  try{ localStorage.setItem(LS_CONFIG_FALLBACK, JSON.stringify(config)); }catch(e){}
+}
+
+async function loadProgress(){
+  const data = await fbGet('/painelita/progress');
+  progressData = data || {};
+  try{ localStorage.setItem(LS_PROGRESS_FALLBACK, JSON.stringify(progressData)); }catch(e){}
   buildChaptersFromProgress();
 }
 async function saveProgress(){
-  try{
-    localStorage.setItem('painelita_progress', JSON.stringify(progressData));
-  }catch(e){
-    console.error('Erro ao salvar progresso', e);
-  }
+  await fbPut('/painelita/progress', progressData);
+  try{ localStorage.setItem(LS_PROGRESS_FALLBACK, JSON.stringify(progressData)); }catch(e){}
 }
 function buildChaptersFromProgress(){
   chapters = CHAPTERS_META.map(meta=>{
@@ -589,34 +609,47 @@ function buildChaptersFromProgress(){
     });
   });
 }
+function showSyncError(msg){
+  let el = document.getElementById('syncToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'syncToast';
+    el.style.cssText = 'position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--late);color:#fff;padding:10px 16px;border-radius:10px;font-size:12.5px;font-family:var(--font-mono);z-index:100;max-width:90vw;box-shadow:var(--shadow);';
+    document.body.appendChild(el);
+  }
+  el.textContent = '⚠ '+msg;
+  el.style.display='block';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{ el.style.display='none'; }, 4500);
+}
 async function updateField(id, field, value){
   progressData[id] = progressData[id] || {};
   progressData[id][field] = value;
   if(value){ progressData[id].ultima_interacao = value; }
-  await saveProgress();
   buildChaptersFromProgress();
   renderAll();
+  try{ await saveProgress(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
 }
 async function registrarRevisao(id){
   progressData[id] = progressData[id] || {};
   progressData[id].revisoes_qtd = (progressData[id].revisoes_qtd||0) + 1;
   progressData[id].ultima_interacao = new Date().toISOString();
-  await saveProgress();
   buildChaptersFromProgress();
   renderAll();
+  try{ await saveProgress(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
 }
 async function removerRevisao(id){
   progressData[id] = progressData[id] || {};
   progressData[id].revisoes_qtd = Math.max(0, (progressData[id].revisoes_qtd||0) - 1);
-  await saveProgress();
   buildChaptersFromProgress();
   renderAll();
+  try{ await saveProgress(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
 }
 async function resetProgress(){
   progressData = {};
-  await saveProgress();
   buildChaptersFromProgress();
   renderAll();
+  await saveProgress();
 }
 
 /* ============ LÓGICA DE REVISÃO ESPAÇADA (independe 100% da data da prova) ============ */
@@ -909,15 +942,38 @@ document.getElementById('btnResetSheet').addEventListener('click', async ()=>{
 
 /* ============ BOOT ============ */
 (async function boot(){
+  const connectTitle = document.getElementById('connectTitle');
+  const connectMsg = document.getElementById('connectMsg');
   try{
     await loadConfig();
     await loadProgress();
+    document.getElementById('connectScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    renderAll();
   }catch(err){
-    console.error('Erro ao carregar dados salvos', err);
+    console.error('Erro ao carregar do Firebase', err);
+    let hasCache = false;
+    try{
+      const rawC = localStorage.getItem(LS_CONFIG_FALLBACK);
+      const rawP = localStorage.getItem(LS_PROGRESS_FALLBACK);
+      if(rawC){ config = Object.assign({}, config, JSON.parse(rawC)); hasCache = true; }
+      progressData = rawP ? JSON.parse(rawP) : {};
+      buildChaptersFromProgress();
+    }catch(e2){}
+    connectTitle.textContent = 'Não consegui conectar ao Firebase 😕';
+    connectMsg.innerHTML =
+      '<span style="font-family:var(--font-mono);font-size:11.5px;color:var(--late);display:block;text-align:left;background:var(--bg-soft);padding:10px;border-radius:8px;margin-bottom:12px;">'+err.message+'</span>'+
+      (hasCache ? 'Existe uma cópia local salva (pode estar desatualizada).<br><br>' : 'Nenhuma cópia local encontrada ainda.<br><br>')+
+      '<button class="mini-btn" id="btnRetryBoot">Tentar de novo</button> '+
+      (hasCache ? '<button class="mini-btn" id="btnContinueOffline">Continuar com dados locais</button>' : '');
+    document.getElementById('btnRetryBoot').addEventListener('click', ()=>location.reload());
+    const contBtn = document.getElementById('btnContinueOffline');
+    if(contBtn) contBtn.addEventListener('click', ()=>{
+      document.getElementById('connectScreen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      renderAll();
+    });
   }
-  document.getElementById('connectScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  renderAll();
 })();
 
 if('serviceWorker' in navigator){
