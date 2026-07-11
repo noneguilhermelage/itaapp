@@ -977,6 +977,32 @@ document.getElementById('btnResetSheet').addEventListener('click', async ()=>{
   }
 })();
 
+/* ============ AUTO-REFRESH AO REABRIR O APP ============
+   Um PWA que volta de segundo plano não recarrega a página sozinho —
+   por isso, sem isso aqui, ele ficava mostrando os dados de quando
+   foi aberto pela última vez até alguém dar refresh manual. */
+let refreshing = false;
+async function refreshFromBackend(){
+  if(refreshing) return;
+  refreshing = true;
+  try{
+    await loadConfig();
+    await loadProgress();
+    renderAll();
+  }catch(err){
+    showSyncError('Não deu pra atualizar agora: '+err.message);
+  }finally{
+    refreshing = false;
+  }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') refreshFromBackend();
+});
+window.addEventListener('focus', refreshFromBackend);
+window.addEventListener('pageshow', (e)=>{
+  if(e.persisted) refreshFromBackend();
+});
+
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('sw.js').catch(()=>{});
