@@ -25,7 +25,7 @@
     --shadow-sm:0 4px 14px -8px rgba(27,37,89,0.12);
 
     --blue-1:#77AEFF; --blue-2:#3D6FE0;
-    --brand:#1E3A8A;
+    --brand:#0E3A47;
     --teal-1:#7FE3E9; --teal-2:#2BAFB8;
     --indigo-1:#AEB6FB; --indigo-2:#6B74E8;
     --orange-1:#FBD394; --orange-2:#EDA23F;
@@ -71,10 +71,44 @@
   .logo{display:flex;align-items:center;gap:9px;margin-bottom:34px;padding:0 6px;}
   .logo-badge{
     width:34px;height:34px;border-radius:10px;
-    background:var(--brand);
-    display:flex;align-items:center;justify-content:center;font-size:16px;
+    box-shadow:0 0 0 1px var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;
   }
   .logo-text{font-family:var(--font-display);font-weight:700;font-size:15px;}
+  .sidebar-search{position:relative;margin-bottom:16px;}
+  .sidebar-search input{
+    width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);
+    background:var(--bg-soft);color:var(--text);font-size:12.5px;font-family:var(--font-body);
+  }
+  .sidebar-search input:focus{outline:none;border-color:var(--blue-2);}
+  .search-results{
+    position:absolute;top:calc(100% + 6px);left:0;width:280px;max-height:320px;overflow-y:auto;
+    background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
+    z-index:60;padding:6px;
+  }
+  .search-result-item{
+    padding:9px 10px;border-radius:8px;cursor:pointer;font-size:12.5px;
+  }
+  .search-result-item:hover{background:var(--bg-soft);}
+  .search-result-item small{display:block;color:var(--text-faint);font-size:10.5px;margin-top:2px;}
+  .search-empty{padding:10px;font-size:12px;color:var(--text-faint);}
+
+  .review-prompt{display:flex;gap:5px;align-items:center;}
+  .diff-btn{padding:6px 9px;font-size:13px;}
+  .diff-btn.hard{border-color:var(--late);}
+  .diff-btn.easy{border-color:var(--ok);}
+  .diff-btn.skip{color:var(--text-faint);}
+
+  .heatmap-wrap{overflow-x:auto;padding-bottom:6px;}
+  .heatmap-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,12px);gap:3px;width:max-content;}
+  .heat-cell{width:12px;height:12px;border-radius:3px;background:var(--bg-soft);}
+  .heat-cell.level-1{background:#BFD3FA;}
+  .heat-cell.level-2{background:#7FA6F2;}
+  .heat-cell.level-3{background:var(--blue-2);}
+  .heat-cell.level-4{background:var(--brand);}
+  .heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:14px;font-size:11px;color:var(--text-faint);}
+  .heatmap-legend .heat-cell{display:inline-block;}
+
   nav.side-nav{display:flex;flex-direction:column;gap:4px;}
   .nav-item{
     display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;
@@ -297,7 +331,7 @@
 
 <div id="connectScreen">
   <div class="connect-card">
-    <div class="spin"><svg viewBox="0 0 512 512" width="34" height="34"><path d="M256 68 C302 128 330 202 330 282 L330 372 Q330 402 300 402 L212 402 Q182 402 182 372 L182 282 C182 202 210 128 256 68 Z" fill="var(--brand)"/><path d="M330 328 Q386 340 408 402 Q354 392 320 372 Z" fill="var(--brand)"/><path d="M182 328 Q126 340 104 402 Q158 392 192 372 Z" fill="var(--brand)"/><circle cx="256" cy="250" r="40" fill="#fff"/></svg></div>
+    <div class="spin"><img src="./icon-192.png" width="42" height="42" style="border-radius:11px;display:block;"></div>
     <h1 id="connectTitle">Carregando seus dados...</h1>
     <p id="connectMsg">Só um instante.</p>
   </div>
@@ -306,13 +340,18 @@
 <div id="app" class="hidden">
   <aside id="sidebar">
     <div class="logo">
-      <div class="logo-badge"><svg viewBox="0 0 512 512" width="19" height="19"><path d="M256 68 C302 128 330 202 330 282 L330 372 Q330 402 300 402 L212 402 Q182 402 182 372 L182 282 C182 202 210 128 256 68 Z" fill="#fff"/><path d="M330 328 Q386 340 408 402 Q354 392 320 372 Z" fill="#fff"/><path d="M182 328 Q126 340 104 402 Q158 392 192 372 Z" fill="#fff"/><circle cx="256" cy="250" r="40" fill="var(--brand)"/></svg></div>
+      <div class="logo-badge"><img src="./icon-192.png" width="34" height="34" style="border-radius:9px;display:block;"></div>
       <div class="logo-text">Painel ITA</div>
+    </div>
+    <div class="sidebar-search">
+      <input id="searchInput" placeholder="Buscar capítulo..." autocomplete="off">
+      <div id="searchResults" class="search-results hidden"></div>
     </div>
     <nav class="side-nav">
       <button class="nav-item active" data-nav="dashboard"><span class="ic">📊</span><span>Dashboard</span></button>
       <button class="nav-item" data-nav="subjects"><span class="ic">📚</span><span>Matérias</span></button>
       <button class="nav-item" data-nav="review"><span class="ic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg></span><span>Revisões</span></button>
+      <button class="nav-item" data-nav="heatmap"><span class="ic">🔥</span><span>Atividade</span></button>
     </nav>
     <div class="sidebar-foot">Seus dados sincronizam via Firebase — funciona igual aqui e na versão instalada no celular/PC.</div>
   </aside>
@@ -403,6 +442,23 @@
       </div>
     </section>
 
+    <section id="view-heatmap">
+      <div class="section-head">
+        <h2>Atividade</h2>
+        <span class="sub">um quadrado por dia — quanto mais escuro, mais ações naquele dia</span>
+      </div>
+      <div class="card">
+        <div class="heatmap-wrap"><div class="heatmap-grid" id="heatmapGrid"></div></div>
+        <div class="heatmap-legend">menos
+          <span class="heat-cell level-0"></span>
+          <span class="heat-cell level-1"></span>
+          <span class="heat-cell level-2"></span>
+          <span class="heat-cell level-3"></span>
+          <span class="heat-cell level-4"></span>
+        mais</div>
+      </div>
+    </section>
+
     <footer class="foot">dados sincronizados via Firebase · mesmo progresso em qualquer dispositivo</footer>
   </div>
 </div>
@@ -430,6 +486,12 @@
     <div class="field">
       <input id="inputIntervals" placeholder="3,7,16,35,90">
       <div class="field-hint">A cada revisão registrada, o próximo intervalo da lista é usado. Depois de passar por todos, o capítulo vira "maturado".</div>
+    </div>
+
+    <div class="modal-section-title">Lembretes</div>
+    <div class="field">
+      <button class="btn btn-secondary" id="btnNotifPermission" style="margin-top:0;">🔔 Ativar lembretes de revisão</button>
+      <div class="field-hint" id="notifStatus">Avisa quando um capítulo estiver a 1 dia de vencer a revisão — só funciona enquanto o app está aberto ou acabou de ser aberto (não é um push em segundo plano).</div>
     </div>
 
     <button class="btn btn-primary" id="btnSaveSettings">Salvar</button>
@@ -538,7 +600,9 @@ let config = {
 
 let chapters = [];
 let progressData = {};
+let activityLog = {};
 let selectedSubject = null;
+let pendingReviewPrompt = null;
 
 function pesoOf(ch){ return config.pesoOverrides[ch.id] || ch.pesoDefault; }
 function pesoValue(ch){ const p = pesoOf(ch); return config.pesoValues[p] !== undefined ? config.pesoValues[p] : 1.5; }
@@ -596,6 +660,18 @@ async function loadProgress(){
   try{ localStorage.setItem(LS_PROGRESS_FALLBACK, JSON.stringify(progressData)); }catch(e){}
   buildChaptersFromProgress();
 }
+
+async function loadActivity(){
+  try{
+    const data = await fbGet('/painelita/activity');
+    activityLog = data || {};
+  }catch(e){ activityLog = activityLog || {}; }
+}
+async function logActivity(){
+  const key = new Date().toISOString().slice(0,10);
+  activityLog[key] = (activityLog[key]||0) + 1;
+  try{ await fbPut('/painelita/activity/'+key, activityLog[key]); }catch(e){ /* silencioso — não é crítico */ }
+}
 async function saveProgress(){
   await fbPut('/painelita/progress', progressData);
   try{ localStorage.setItem(LS_PROGRESS_FALLBACK, JSON.stringify(progressData)); }catch(e){}
@@ -631,15 +707,29 @@ async function updateField(id, field, value){
   if(value){ progressData[id].ultima_interacao = value; }
   buildChaptersFromProgress();
   renderAll();
-  try{ await saveProgress(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
+  try{ await saveProgress(); if(value) await logActivity(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
 }
-async function registrarRevisao(id){
+
+// delta: +2 fácil, +1 normal/pular, -1 difícil
+async function registrarRevisaoComDificuldade(id, delta){
+  pendingReviewPrompt = null;
   progressData[id] = progressData[id] || {};
-  progressData[id].revisoes_qtd = (progressData[id].revisoes_qtd||0) + 1;
+  const atual = progressData[id].revisoes_qtd || 0;
+  progressData[id].revisoes_qtd = Math.max(0, atual + delta);
   progressData[id].ultima_interacao = new Date().toISOString();
   buildChaptersFromProgress();
   renderAll();
-  try{ await saveProgress(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
+  try{ await saveProgress(); await logActivity(); }catch(err){ showSyncError('Não sincronizou com o Firebase: '+err.message); }
+}
+function reviewActionsHtml(c){
+  if(pendingReviewPrompt === c.id){
+    return '<div class="review-prompt">'+
+      '<button class="mini-btn diff-btn hard" data-action="revisar-dificil" data-id="'+c.id+'" title="foi difícil lembrar — encurta o próximo intervalo">😖</button>'+
+      '<button class="mini-btn diff-btn skip" data-action="revisar-normal" data-id="'+c.id+'" title="seguir o roteiro normal">✕</button>'+
+      '<button class="mini-btn diff-btn easy" data-action="revisar-facil" data-id="'+c.id+'" title="foi fácil lembrar — pula um intervalo">😌</button>'+
+    '</div>';
+  }
+  return '<button class="mini-btn" data-action="revisar" data-id="'+c.id+'">+ revisão ('+(c.revisoes_qtd||0)+')</button>';
 }
 async function removerRevisao(id){
   progressData[id] = progressData[id] || {};
@@ -690,7 +780,30 @@ function renderAll(){
   renderRing();
   renderPace();
   renderSubjects();
+  renderHeatmap();
   if(selectedSubject) renderDetail(selectedSubject);
+}
+
+function renderHeatmap(){
+  const el = document.getElementById('heatmapGrid');
+  if(!el) return;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const weeksBack = 13;
+  const daysBack = weeksBack*7 + today.getDay();
+  const start = new Date(today.getTime() - daysBack*86400000);
+  let html = '';
+  for(let i=0;i<=daysBack;i++){
+    const d = new Date(start.getTime() + i*86400000);
+    const key = d.toISOString().slice(0,10);
+    const count = activityLog[key] || 0;
+    const level = count===0?0: count<=2?1: count<=4?2: count<=7?3:4;
+    const col = Math.floor(i/7)+1;
+    const row = d.getDay()+1;
+    const dLabel = d.getDate()+'/'+(d.getMonth()+1);
+    html += '<div class="heat-cell level-'+level+'" style="grid-column:'+col+';grid-row:'+row+';" title="'+dLabel+': '+count+' ações"></div>';
+  }
+  el.innerHTML = html;
 }
 
 function renderChips(){
@@ -718,7 +831,7 @@ function renderChart(){
       const d = new Date(c.teoria_data);
       return d>start && d<=end;
     }).length;
-    weeks.push({label:(end.getMonth()+1)+'/'+end.getDate(), count});
+    weeks.push({label:end.getDate()+'/'+(end.getMonth()+1), count});
   }
   const max = Math.max(1, ...weeks.map(w=>w.count));
   document.getElementById('chartBars').innerHTML = weeks.map(w=>{
@@ -738,7 +851,7 @@ function buildReviewRowHtml(c){
     '<div class="dot" style="background:'+stateColor(r.state)+'"></div>'+
     '<div class="name">'+c.nome+'<small>'+c.materia+'</small></div>'+
     '<div class="badge-time '+cls+'">'+txt+'</div>'+
-    '<button class="mini-btn" data-action="revisar" data-id="'+c.id+'">+ revisão</button>'+
+    reviewActionsHtml(c)+
     (c.revisoes_qtd>0 ? '<button class="mini-btn" data-action="remover-revisao" data-id="'+c.id+'" title="remover última revisão">− revisão</button>' : '')+
   '</div>';
 }
@@ -851,7 +964,7 @@ function renderDetail(mat){
         '<button class="toggle-btn'+(c.teoria_data?' on':'')+'" data-action="toggle-field" data-id="'+c.id+'" data-field="teoria_data" data-on="'+(!!c.teoria_data)+'">Teoria</button>'+
         '<button class="toggle-btn'+(c.facil_data?' on mid':'')+'" data-action="toggle-field" data-id="'+c.id+'" data-field="facil_data" data-on="'+(!!c.facil_data)+'">Q. fáceis</button>'+
         '<button class="toggle-btn'+(c.dificil_data?' on hard':'')+'" data-action="toggle-field" data-id="'+c.id+'" data-field="dificil_data" data-on="'+(!!c.dificil_data)+'">Q. difíceis</button>'+
-        '<button class="toggle-btn rev" data-action="revisar" data-id="'+c.id+'">+ revisão ('+(c.revisoes_qtd||0)+')</button>'+
+        reviewActionsHtml(c)+
         (c.revisoes_qtd>0 ? '<button class="toggle-btn rev" data-action="remover-revisao" data-id="'+c.id+'" title="remover última revisão">− revisão</button>' : '')+
       '</div>'+
     '</div>';
@@ -884,19 +997,69 @@ document.addEventListener('click', (e)=>{
     return;
   }
   const btn = e.target.closest('[data-action]');
-  if(!btn) return;
+  if(!btn){
+    // clique fora de qualquer ação: fecha prompt de dificuldade e dropdown de busca abertos
+    if(!e.target.closest('.sidebar-search')){
+      const sr = document.getElementById('searchResults');
+      if(sr) sr.classList.add('hidden');
+    }
+    if(pendingReviewPrompt){ pendingReviewPrompt = null; renderAll(); }
+    return;
+  }
   const action = btn.dataset.action;
   const id = btn.dataset.id;
-  if(action==='revisar') registrarRevisao(id);
+  if(action==='revisar'){ pendingReviewPrompt = id; renderAll(); }
+  else if(action==='revisar-dificil') registrarRevisaoComDificuldade(id, -1);
+  else if(action==='revisar-normal') registrarRevisaoComDificuldade(id, 1);
+  else if(action==='revisar-facil') registrarRevisaoComDificuldade(id, 2);
   else if(action==='remover-revisao') removerRevisao(id);
   else if(action==='toggle-field') toggleField(id, btn.dataset.field, btn.dataset.on==='true');
   else if(action==='open-subject'){ selectedSubject = btn.dataset.materia; renderDetail(selectedSubject); document.getElementById('detailPanel').scrollIntoView({behavior:'smooth',block:'nearest'}); }
   else if(action==='cycle-peso') cyclePeso(id);
+  else if(action==='select-search-result'){
+    const materia = btn.dataset.materia;
+    selectedSubject = materia;
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    const subjNav = document.querySelector('.nav-item[data-nav="subjects"]');
+    if(subjNav) subjNav.classList.add('active');
+    renderDetail(materia);
+    renderSubjects();
+    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('searchInput').value = '';
+    document.getElementById('view-subjects').scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(()=>{
+      const toggleBtn = document.querySelector('[data-action="toggle-field"][data-id="'+id+'"]');
+      const row = toggleBtn ? toggleBtn.closest('.chapter-row') : null;
+      if(row){
+        row.style.transition = 'background .4s';
+        row.style.background = 'var(--bg-soft)';
+        row.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(()=>{ row.style.background=''; }, 1400);
+      }
+    }, 350);
+  }
 });
 document.getElementById('btnCloseDetail').addEventListener('click', ()=>{
   selectedSubject = null;
   document.getElementById('detailPanel').classList.add('hidden');
 });
+
+/* ============ BUSCA RÁPIDA ============ */
+function normalizeStr(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function doSearch(query){
+  const q = normalizeStr(query.trim());
+  const resultsEl = document.getElementById('searchResults');
+  if(!q){ resultsEl.classList.add('hidden'); resultsEl.innerHTML=''; return; }
+  const matches = CHAPTERS_META.filter(c=> normalizeStr(c.nome).includes(q)).slice(0,8);
+  resultsEl.innerHTML = matches.length
+    ? matches.map(c=>'<div class="search-result-item" data-action="select-search-result" data-id="'+c.id+'" data-materia="'+c.materia+'">'+c.nome+'<small>'+c.materia+'</small></div>').join('')
+    : '<div class="search-empty">Nenhum capítulo encontrado.</div>';
+  resultsEl.classList.remove('hidden');
+}
+document.getElementById('searchInput').addEventListener('input', (e)=> doSearch(e.target.value));
+document.getElementById('searchInput').addEventListener('focus', (e)=>{ if(e.target.value) doSearch(e.target.value); });
 
 /* ============ SETTINGS MODAL ============ */
 function openSettings(){
@@ -908,6 +1071,7 @@ function openSettings(){
   document.getElementById('pesoG').value = config.pesoValues.G;
   document.getElementById('inputIntervals').value = config.intervals.join(',');
   document.getElementById('settingsStatus').textContent = '';
+  updateNotifStatus();
   document.getElementById('settingsModal').classList.remove('hidden');
 }
 function closeSettings(){ document.getElementById('settingsModal').classList.add('hidden'); }
@@ -957,9 +1121,12 @@ document.getElementById('btnResetSheet').addEventListener('click', async ()=>{
   try{
     await loadConfig();
     await loadProgress();
+    loadActivity();
     document.getElementById('connectScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     renderAll();
+    updateNotifStatus();
+    checkAndNotify();
   }catch(err){
     console.error('Erro ao carregar do Firebase', err);
     let hasCache = false;
@@ -997,7 +1164,9 @@ async function refreshFromBackend(){
   try{
     await loadConfig();
     await loadProgress();
+    await loadActivity();
     renderAll();
+    checkAndNotify();
   }catch(err){
     showSyncError('Não deu pra atualizar agora: '+err.message);
   }finally{
@@ -1011,6 +1180,52 @@ window.addEventListener('focus', refreshFromBackend);
 window.addEventListener('pageshow', (e)=>{
   if(e.persisted) refreshFromBackend();
 });
+
+/* ============ NOTIFICAÇÕES (1 dia antes de vencer) ============
+   Dispara quando o app é aberto/reaberto — não é um push em segundo
+   plano de verdade (isso exigiria um servidor próprio via FCM). */
+function updateNotifStatus(){
+  const el = document.getElementById('notifStatus');
+  const btn = document.getElementById('btnNotifPermission');
+  if(!('Notification' in window)){
+    if(el) el.textContent = 'Seu navegador não suporta notificações.';
+    if(btn) btn.classList.add('hidden');
+    return;
+  }
+  if(Notification.permission === 'granted'){
+    if(el) el.textContent = 'Lembretes ativados ✅ — avisa quando faltar 1 dia pra vencer uma revisão.';
+    if(btn) btn.textContent = '🔔 Lembretes já ativados';
+  } else if(Notification.permission === 'denied'){
+    if(el) el.textContent = 'Notificações bloqueadas nas configurações do navegador/celular — precisa reativar lá pra funcionar.';
+  }
+}
+document.getElementById('btnNotifPermission').addEventListener('click', async ()=>{
+  if(!('Notification' in window)) return;
+  await Notification.requestPermission();
+  updateNotifStatus();
+  checkAndNotify();
+});
+function checkAndNotify(){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const todayKey = new Date().toISOString().slice(0,10);
+  let notifiedLog = {};
+  try{ notifiedLog = JSON.parse(localStorage.getItem('painelita_notified')||'{}'); }catch(e){}
+  const dueTomorrow = chapters.filter(c=>{
+    const r = getReviewState(c);
+    return (r.state==='revisar_breve' || r.state==='atrasado') && r.daysUntilDue===1;
+  });
+  let changed = false;
+  dueTomorrow.forEach(c=>{
+    const key = c.id+'_'+todayKey;
+    if(notifiedLog[key]) return;
+    try{
+      new Notification('Revisão amanhã: '+c.nome, {body: c.materia+' — vence em 1 dia', icon:'./icon-192.png'});
+    }catch(e){}
+    notifiedLog[key] = true;
+    changed = true;
+  });
+  if(changed){ try{ localStorage.setItem('painelita_notified', JSON.stringify(notifiedLog)); }catch(e){} }
+}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
